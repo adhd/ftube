@@ -14,15 +14,28 @@ package
 	import flash.desktop.Clipboard;
     import flash.desktop.ClipboardFormats;
     import flash.desktop.ClipboardTransferMode;
+    import flash.net.URLLoader;
+    import flash.events.MouseEvent;
 	
 	
 	public class fTube extends Sprite 
-	{		
+	{	
+		private const DEFAULT_FEED:String = "http://gdata.youtube.com/feeds/api/playlists/PLATjbKChjE_SfvQaDTkE6FizNT_rYQ4as?alt=rss&format=5&max-results=5";
+		
+		public var thumb0:Sprite;
+		public var thumb1:Sprite;
+		public var thumb2:Sprite;
+		public var thumb3:Sprite;
+		public var thumb4:Sprite;
+		
 		private var youTubeLoader:Loader;
 		private var youTubePlayer:Object;
 		
 		private var videoId:String;
 		private var clipboardString:String;
+		
+		private var feedLoader:URLLoader;
+		private var data_xml:XML;
 
 		public function fTube()
 		{
@@ -38,8 +51,70 @@ package
 		
 		private function initPlayer():void
 		{
+			feedLoader = new URLLoader();
+			feedLoader.addEventListener(Event.COMPLETE, feedHandler);
+			feedLoader.load(new URLRequest(DEFAULT_FEED));
+			
 			youTubeLoader = new Loader();
 			youTubeLoader.contentLoaderInfo.addEventListener(Event.INIT, loaderHandler);
+			
+			var thumb:Sprite;
+			for (var i:int = 0; i < 5; i++)
+			{
+				thumb = this["thumb" + i.toString()];
+				thumb["num"] = i;
+				thumb.addEventListener(MouseEvent.CLICK, thumbHandler);
+			}
+		}
+		
+		private function thumbHandler(e:MouseEvent):void
+		{
+			var thumbNum:int = e.currentTarget.num;
+			// trace(thumbNum);
+			// trace(data_xml.channel.item[thumbNum].link);
+			loadVideoById(parseLink(data_xml.channel.item[thumbNum].link));
+		}
+		
+		private function feedParse():void
+		{
+			// rss_txt.text = "";
+			
+			var body:String = "";
+			var item:XML;
+			
+			// trace(data_xml);
+			
+			var mediaNS:Namespace = data_xml.namespace("media"); // new Namespace("media", "http://search.yahoo.com/mrss/");
+			// trace(mediaNS);
+			
+			for (var i:int = 0; i < data_xml.channel.item.length(); i++)
+			{
+				item = data_xml.channel.item[i];
+
+				trace(item.title);
+				trace(item.mediaNS::group.mediaNS::thumbnail[1].@url);
+				
+				var loader:Loader = new Loader();
+				loader.load(new URLRequest(item.mediaNS::group.mediaNS::thumbnail[1].@url));
+				
+				this["thumb" + i.toString()].label_txt.text = item.title;
+				this["thumb" + i.toString()].thumb_mc.addChild(loader);
+				
+				
+				body += "<b><a href='event:" + item.link + "'>" + item.title + "</a></b><br/>";
+				body += "- - - - - - - - - - - -<br/>";
+				// body += item.description + "<br/>";
+				
+				// trace(data_xml.channel.item.length());
+			}
+			
+			// rss_txt.htmlText = body;
+		}
+		
+		private function feedHandler(e:Event):void
+		{
+			data_xml = XML(feedLoader.data);
+			feedParse();
 		}
 		
 		private function update():void
@@ -86,7 +161,7 @@ package
 			else
 			{
 				// New Loader
-				youTubeLoader.load(new URLRequest("http://www.youtube.com/v/" + v + "?version=3"));
+				youTubeLoader.load(new URLRequest("http://www.youtube.com/v/" + v + "?version=3&modestbranding=1&authide=1&theme=light")); // 
 			}
 		}
 		
